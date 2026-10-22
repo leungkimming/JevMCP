@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
+import { choice, score, TypeSafeClient } from "@typesafe-ai/sdk";
 import { z } from "zod";
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -23,6 +23,30 @@ const decisionInput = z.object({
   task: z.string().min(1),
   context: z.record(z.string(), jsonValueSchema).describe("Decision context as JSON. Include the requirements, generated code, tests, test results, pass rates, constraints, and proposed action that Jev should evaluate."),
   questionText: z.string().min(1).default("Should the agent proceed with this action?"),
+});
+
+const rankInput = z.object({
+  step: z.string().min(1),
+  feature: z.string().min(1),
+  task: z.string().min(1),
+  context: z.record(z.string(), jsonValueSchema).describe("Ranking context as JSON. Include the artifact content and evaluation criteria Jev should assess."),
+  questionText: z.record(z.string(), jsonValueSchema).describe("Ranking question as JSON. Include quality.instructions and a quality.ranking array from 1 through 10.").default({
+    quality: {
+      instructions: "Rate the artifact quality from 1 to 10 according to the supplied criteria.",
+      ranking: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    },
+  }),
+});
+
+const rankQuestionSchema = z.object({
+  quality: z.object({
+    instructions: z.string().min(1),
+    ranking: z.array(z.number().int().min(1).max(10))
+      .length(10)
+      .refine((values) => values.every((value, index) => value === index + 1), {
+        message: "Ranking must contain the values 1 through 10 in ascending order.",
+      }),
+  }),
 });
 
 type DecisionInput = z.infer<typeof decisionInput>;
@@ -117,6 +141,69 @@ Example:
         content: [{
           type: "text",
           text: `BLOCKED\nReason: ${reason.replace(/^BLOCKED:\s*/, "")}`,
+        }],
+      };
+    }
+  },
+);
+
+server.registerTool(
+  "Jev_Rank",
+  {
+    description: `Rank artifact quality from 1 to 10 using Jev. This is an evaluation tool, not an approval gate.
+
+Required input:
+- step, feature, task: Workflow context for the evaluation.
+- context: A JSON object containing the artifact content, criteria, and any supporting evidence or constraints.
+- questionText: Plain JSON describing a quality question, its instructions, and ranking scale from 1 to 10. For example: { "quality": { "instructions": "Rate clarity for frontend implementation.", "ranking": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] } }.
+
+Returns Jev's numeric score and full response.`,
+    inputSchema: rankInput,
+  },
+  async (rawInput) => {
+    const input = rankInput.parse(rawInput);
+    console.error("Jev rank inputs:", JSON.stringify(input, null, 2));
+
+    try {
+      const client = new TypeSafeClient();
+      const question = rankQuestionSchema.parse(input.questionText).quality;
+      const ranking = question.ranking;
+      const criteria = ranking.map((value) => `Rank ${value}`) as [string, string, ...string[]];
+      const response = await client.systemOne({
+        state: {
+          step: input.step,
+          feature: input.feature,
+          task: input.task,
+          context: input.context,
+        },
+        questions: {
+          quality: score(question.instructions, criteria),
+        },
+      });
+
+      const rawScore = response?.answers?.quality?.score;
+      if (typeof rawScore !== "number" || rawScore < 0 || rawScore > 9) {
+        throw new Error("Jev did not return a valid rank from 1 to 10.");
+      }
+      const scoreValue = rawScore + 1;
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            score: scoreValue,
+            response,
+          }, null, 2),
+        }],
+      };
+    } catch (error) {
+      console.error("Jev rank failed:", error);
+      const reason = error instanceof Error ? error.message : "Jev could not rank the artifact.";
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: `Unable to rank artifact\nReason: ${reason}`,
         }],
       };
     }

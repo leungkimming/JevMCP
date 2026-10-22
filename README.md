@@ -18,7 +18,12 @@ npm run build
 
 The workspace `.vscode/mcp.json` registers the built server. Set `TYPESAFE_API_KEY` in the environment that launches VS Code, then run `MCP: List Servers` and start `jev`.
 
-The server exposes one tool: `jev_decision`. It accepts `step`, `feature`, and `task`, plus a flexible `context` JSON object. Put the relevant decision material in `context`, such as requirements, generated code, test cases, test results, pass rates, constraints, or a proposed action. For example:
+The server exposes two tools:
+
+- `jev_decision` requests an allow/deny decision using `step`, `feature`, `task`, and a flexible `context` JSON object.
+- `Jev_Rank` accepts workflow fields matching `jev_decision`, with JSON `context` and JSON `questionText`. Put artifact content and evaluation criteria in `context`; set `questionText.quality.instructions` and a `ranking` scale from 1 to 10. It returns Jev's numeric quality score and response.
+
+For `jev_decision`, put the relevant decision material in `context`, such as requirements, generated code, test cases, test results, pass rates, constraints, or a proposed action. For example:
 
 ```json
 {

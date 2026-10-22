@@ -133,7 +133,7 @@ Follow a step-by-step BDD workflow to implement features. Use the Given-When-The
 | integration-test | ☐ | ☐ | ☐ |
 ```
 - **Jev_decide**: Check and decide on the completion of the skill invocation Ledger. 
-- **Jev_decide**: provide the content of `.github/solutionArchitecture.md` and the generated `FeatureDesign.md` file for Jev to rank the quality of `FeatureDesign.md` from 1 to 10. passing mark is 6. 
+- **Jev_rank**: provide the content of `.github/solutionArchitecture.md` and the generated `FeatureDesign.md` file for Jev to rank the quality of `FeatureDesign.md` from 1 to 10. passing mark is 6. 
 
 **Step 4:**  
 - Hard constraint: Use the `feature-tasks` skill to create a `FeatureTasks.md` file in `workspec/{featurex}`.  
@@ -246,7 +246,7 @@ After successfully completing the backend API solution, prepare an `api_spec.yam
 - **🚫 STRICTLY FORBIDDEN - AUDIT FIELDS**: 
   - **NEVER include audit fields in create or update API specifications**: `CurrentLoginId`, `CurrentDateTime`, `CreatedBy`, `CreatedTime`, `UpdatedBy`, `UpdatedTime`, or similar audit trail fields. They are updated internally by the backend and their values should **NEVER** come from API input. However, API specifications should containt these audit fields in response payloads for query APIs, as they are part of the actual data model and may be needed by the frontend.
 - Create the `api_spec.yaml` file in the same `workspec/{featurex}` folder.
-- **Jev_decide**: provide the content of the generated `api_spec.yaml` file for Jev to rank its quality, in terms of clarity for frontend implementation, from 1 to 10. Passing mark is 7.
+- **Jev_rank**: provide the content of the generated `api_spec.yaml` file for Jev to rank its quality, in terms of clarity for frontend implementation, from 1 to 10. Passing mark is 8.
 
 **Step 8  (Strict Execution Protocol):**
 - Hard constraint: Do NOT run database migration / database update commands (e.g., `dotnet ef migrations add`, `dotnet ef database update`).
